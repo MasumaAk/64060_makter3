@@ -1,0 +1,133 @@
+---
+title: "Assignment 3_FML"
+author: "Masuma"
+date: "2024-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+***
+## Summary
+As per the questions, I have analyzed the data of Universal Bank and to analyze
+the whole data set based on required questions I have used several Libraries. To
+begin with, I have at first uploaded the dataset and assigned the dataset as
+"myUB" and then changed the required variable as Factor variable to do analyze
+and interpret categorical data effectively. Then moved to data partition into
+training (60%) and validation (40%) sets.
+
+Then, I have created a pivot table for the training data with Online as a column
+variable, CC as a row variable, and Loan as a secondary row variable by using 
+melt() and decast function. After doing this I have found that around 30% 
+customers has a probability to accept the loan offer based on mentioned 
+conditions.
+
+Finally, comparing the results between pivot table function and naive base analysis the result shows almost similar which also represents estimation which is almost 9%.
+
+***
+
+```{r}
+library(ISLR)
+library(caret)
+library(e1071)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(rpart)
+library(reshape2)
+library(randomForest)
+library(tidyverse)
+library(class)
+library(lattice)
+library(tidyr)
+```
+```{r}
+myUB <- read.csv("C:\\Users\\mkhan\\OneDrive\\Desktop\\FML Assignment 3\\UniversalBank.csv")
+head(myUB, n=5)
+```
+
+#### Data conversion to factor 
+```{r}
+myUB$Personal.Loan <- as.factor(myUB$Personal.Loan)
+myUB$Online <- as.factor(myUB$Online)
+myUB$CreditCard <- as.factor(myUB$CreditCard)
+head(myUB, n=10)
+```
+
+#### Data Partitioning into training (60%) and validation (40%) sets
+```{r}
+set.seed(1)
+Train_Indx <- sample(row.names(myUB), 0.6*dim(myUB)[1])
+Valid_Indx <- setdiff(row.names(myUB),Train_Indx)
+Traindata <- myUB[Train_Indx, ]
+Validdata <- myUB[Valid_Indx, ]
+```
+
+#### Create a pivot table for the training data with Online as a column variable, CC as a row variable, and Loan as a secondary row variable. The values inside the table should convey the count
+
+```{r}
+melt.UB <- melt(Traindata,id=c("CreditCard","Personal.Loan"),variable= "Online")
+recast.UB <- dcast(melt.UB,CreditCard+Personal.Loan~Online)
+PV <- recast.UB[,c(1:2,14)]
+print(PV)
+```
+
+
+#### Consider the task of classifying a customer who owns a bank credit card and is actively using online banking services. Looking at the pivot table, what is the probability that this customer will accept the loan offer? [This is the probability of loan acceptance (Loan = 1) conditional on having a bank credit card (CC = 1) and being an active user of online banking services (Online = 1)].
+```{r}
+91/3000
+```
+
+#### Create two separate pivot tables for the training data. One will have Loan (rows) as a function of Online (columns) and the other will have Loan (rows) as a function of CC
+```{r}
+Melt.UB1 <- melt(Traindata,id=c("Personal.Loan"),variable = "Online")
+```
+
+```{r}
+Melt.UB2 <- melt(Traindata,id=c("CreditCard"),variable = "Online")
+```
+
+```{r}
+recast.UB1 <- dcast(Melt.UB1,Personal.Loan~Online)
+recast.UB2 <- dcast(Melt.UB2,CreditCard~Online)
+Loan_online <- recast.UB1[,c(1,13)]
+Loan_CC <- recast.UB2[,c(1,14)]
+
+Loan_online
+Loan_CC
+```
+
+#### Compute the following quantities [P(A | B) means “the probability ofA given B”]: i. P(CC = 1 | Loan = 1) (the proportion of credit card holders among the loan acceptors)ii. P(Online = 1 | Loan = 1) iii. P(Loan = 1) (the proportion of loan acceptors) iv. P(CC = 1 | Loan = 0) v. P(Online = 1 | Loan = 0) vi. P(Loan = 0)
+```{r}
+table(Traindata[,c(14,10)])
+```
+
+```{r}
+table(Traindata[,c(13,10)])
+```
+
+```{r}
+table(Traindata[,c(10)])
+```
+#### Use the quantities computed above to compute the naive Bayes probability
+P(Loan = 1 | CC = 1, Online = 1).
+```{r}
+((77/(77+198))*(166/(166+109))*(275/(275+2725)))/(((77/(77+198))*(166/(166+109))
+                                                   *(275/(275+2725)))+((801/(801+1924))*(1588/(1588+1137))*2725/(2725+275)))
+```
+#### Compare this value with the one obtained from the pivot table in (B). Which is a more accurate estimate?
+Answer: 9.05% are very similar to the 9.4% the difference between the exact method and the naive-baise method is the exact method.
+
+#### Which of the entries in this table are needed for computing P (Loan = 1 | 
+CC = 1, Online = 1)? In R, run naive Bayes on the data. Examine the model 
+output on training data, and find the entry that corresponds to P (Loan = 1 
+| CC = 1, Online = 1). Compare this to the number you obtained in (e).
+
+```{r}
+Nv_train = Traindata[,c(10,13:14)]
+Nv_Valid = Validdata[,c(10,13:14)]
+naive.bayes = naiveBayes(Personal.Loan~.,data=Nv_train)
+naive.bayes
+```
+#### Herethe naive bayes is the near to similar the outcome we recieved in the previous pivot table function. So, (.280)(.603)(.09)/(.280.603.09+.29.58.908) = .0904 which is the same response 9% as like Pivot Table.
