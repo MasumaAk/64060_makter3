@@ -1,0 +1,200 @@
+---
+title: "Assignment_4"
+author: "Masuma"
+date: "2024-03-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Summary
+The primary aim of employing the k-Means clustering algorithm, an Unsupervised Machine Learning technique, was to discern the inherent structure within the pharmaceutical industry. Initially, I loaded the requisite libraries to facilitate the analysis. Subsequently, categorical variables were excluded, focusing solely on the numerical variables 1 through 9. These numerical variables were then standardized to gauge the inter-variable distances and enable visual representations.
+
+For the clustering process, I opted for k=4 with 25 restarts, resulting in the identification of 4 clusters, each characterized by centroid values delineated in the output. The clusters, delineated by 4 centroids across 9 numerical variables, exhibited distinct patterns. Cluster 1 showcased a positive trend vertically but lagged below average horizontally. Conversely, Cluster 2 displayed above-average characteristics both vertically and horizontally. Cluster 3 emerged as exceptionally strong in both dimensions, earning it the designation of "Top Performance". Cluster 4, while positioned positively horizontally, hovered near the average vertically.
+
+Moreover, utilizing Manhattan distance yielded cluster distributions of 4, 7, 3, and 7, deviating from previous results. Additionally, leveraging "k4@centers" facilitated a straightforward interpretation of the variances in numerical variables across clusters, thereby offering valuable insights into each cluster's attributes.
+
+Furthermore, certain categorical variables exhibited discernible patterns concerning the numerical variables 10 to 12. These patterns were represented to elucidate their influence on cluster formation. Additionally, I assigned descriptive names to the 4 clusters, incorporating them into the dataset for easier interpretation and analysis.
+
+```{r}
+library(factoextra)
+library(dplyr)
+library(cluster)
+library(stats)
+library(flexclust)
+library(ggplot2)
+```
+
+
+```{r}
+MPharma <- read.csv("C:\\Users\\mkhan\\OneDrive\\Desktop\\Assignment_4-FML\\Pharmaceuticals.csv")
+str(MPharma)
+```
+
+```{r}
+N_Pharma <- subset(MPharma, select = -c(Symbol, Name, Median_Recommendation, Location, Exchange))
+str(N_Pharma )
+summary(N_Pharma)
+```
+
+# Standardizing the numerical variables
+```{r}
+N_Pharma <- scale(N_Pharma)
+distance <- get_dist(N_Pharma)
+fviz_dist(distance)
+```
+#Here, K-means helps to get few outcomes:
+#Cluster 1: This cluster has high positive values for Market_Cap, ROE, ROA, Asset_Turnover, Rev_Growth, and Net_Profit_Margin, indicating that the firms in this cluster generally have high market capitalization, return on equity, return on assets, asset turnover, revenue growth, and net profit margin.
+
+#Cluster 2: In this cluster, Market_Cap, PE_Ratio, ROE, ROA, Rev_Growth, and Net_Profit_Margin have relatively lower values compared to Cluster 1, with Beta being moderately positive. This suggests that the firms in this cluster have lower market capitalization and profitability measures compared to Cluster 1.
+
+#Cluster 3: Market_Cap, PE_Ratio, ROE, ROA, and Net_Profit_Margin have lower values compared to Cluster 1 but higher than Cluster 2. Beta is positive, indicating some level of risk, and Asset_Turnover is negative, suggesting lower efficiency in asset utilization.
+
+#Cluster 4: This cluster has moderate values across all features, with Market_Cap, Beta, ROE, and ROA being close to zero. PE_Ratio, Rev_Growth, and Net_Profit_Margin are negative, indicating lower profitability and growth compared to other clusters.
+```{r}
+k4 <- kmeans(N_Pharma,centers = 4,nstart = 25)
+k4$centers
+```
+
+
+```{r}
+k4$size
+```
+```{r}
+k4$cluster[6]
+```
+```{r}
+fviz_cluster(k4, data= N_Pharma)
+```
+
+# k-means clustering, using manhattan distance
+```{r}
+set.seed(123)
+k4 <- kcca(N_Pharma,k=4,kccaFamily(("kmedians")))
+k4
+```
+
+# Applying the Predict Function
+```{r}
+set.seed(123)
+clusters_index <- predict(k4)
+image(k4)
+points(N_Pharma, col=clusters_index, pch=19,cex=0.3)
+```
+
+
+```{r}
+set.seed(123)
+N_Pharma<- MPharma[ , c(3:11)]
+```
+
+
+```{r}
+set.seed(123)
+fviz_nbclust(N_Pharma,kmeans,method = "wss")
+
+```
+
+#Interpretation of cluster : These interpretations provide insights into the characteristics of each cluster based on the average values of the numerical variables within each cluster.
+
+```{r}
+cluster_centers <- k4@centers
+print(cluster_centers)
+```
+
+# Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters).
+To analyze if there's a pattern in the clusters with respect to the numerical variables that were not used in forming the clusters (variables 10 to 12), we can examine the distribution of these variables across the clusters. While these variables were not directly used in forming the clusters, they can still provide additional insights into the characteristics of the clusters.
+
+We can visualize the distribution of variables 10 to 12 across the clusters using box plots or other appropriate plots. Let's assume these variables are named Median_Recommendation, Location, and Exchange. Here's how we can visualize the distribution of these variables across the clusters:
+
+# Extracting variables 10 to 12
+```{r}
+additional_variables <- MPharma[, c("Median_Recommendation", "Location", "Exchange")]
+View(additional_variables)
+
+```
+
+# Accessing the cluster assignments from the k4 object
+
+```{r}
+cluster_assignments <- k4@cluster
+
+additional_variables$Cluster <- cluster_assignments
+str(additional_variables)
+```
+
+```{r}
+any(is.na(additional_variables))
+```
+# Plotting Additional Variables
+
+```{r}
+# Check for any unusual values in Median_Recommendation
+head(additional_variables$Median_Recommendation)
+head(additional_variables$Location)
+head(additional_variables$Exchange)
+head(additional_variables$Cluster)
+
+```
+
+# Creating boxplots using ggplot2
+```{r}
+# For Median_Recommendation
+ggplot(additional_variables, aes(x = Cluster, y = Median_Recommendation)) +
+  geom_boxplot() +
+  labs(title = "Median Recommendation by Cluster")
+
+# For Location
+ggplot(additional_variables, aes(x = Cluster, y = Location)) +
+  geom_boxplot() +
+  labs(title = "Location by Cluster")
+
+# For Exchange
+ggplot(additional_variables, aes(x = Cluster, y = Exchange)) +
+  geom_boxplot() +
+  labs(title = "Exchange by Cluster")
+```
+
+
+```{r}
+str(additional_variables$Cluster)
+additional_variables$Cluster <- as.factor(additional_variables$Cluster)
+any(is.na(additional_variables$Cluster))
+```
+
+Ploting Boxplot for additional Varibles
+```{r}
+# Plot the boxplot
+ggplot(additional_variables, aes(x = Cluster, y = Median_Recommendation)) +
+  geom_boxplot() +
+  labs(title = "Median Recommendation by Cluster")
+
+# For Location
+ggplot(additional_variables, aes(x = Cluster, y = Location)) +
+  geom_boxplot() +
+  labs(title = "Location by Cluster")
+
+# For Exchange
+ggplot(additional_variables, aes(x = Cluster, y = Exchange)) +
+  geom_boxplot() +
+  labs(title = "Exchange by Cluster")
+```
+
+#d. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+```{r}
+# Defining appropriate names for the clusters
+cluster_names <- c("Cluster 1: Below Perfomence", 
+                   "Cluster 2: Good Performance", 
+                   "Cluster 3: Top Performence", 
+                   "Cluster 4: Moderate Performance")
+```
+
+```{r}
+# Adding cluster names to the dataset
+MPharma_with_names <- mutate(MPharma, Cluster_Name = cluster_names[cluster_assignments])
+
+head(MPharma_with_names)
+View(MPharma_with_names)
+```
+
