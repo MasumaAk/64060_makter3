@@ -1,0 +1,154 @@
+---
+title: "Assignment-5"
+author: "Masuma"
+date: "2024-04-02"
+output: html_document
+---
+*** Executive Summary
+To complete the assigned task, I utilized a range of libraries that enabled functions for statistical analysis, clustering algorithms, data manipulation, visualization, and machine learning on the "Cereals.csv" dataset. After setting the working directory and loading the dataset, I designated the cereal names as row names by specifying row.names=1. For data processing, I used the subset() function to remove categorical columns (mfr and type) from the dataset, focusing on numerical variables essential for hierarchical clustering.
+
+Upon removing missing values, I proceeded to normalize the data, which involves standardizing each numeric variable to have a mean of zero and a unit variance. Subsequently, I calculated the dissimilarity matrix using Euclidean distance on the normalized measurements, laying the groundwork for hierarchical clustering. Through applying the Agnes algorithm with different linkage methods, I identified "Ward" as the optimal method based on the agglomerative coefficient of 0.9046042 or 90%. Also, here I have chosen 4 clusters, which also showed in my analysis.
+
+To determine the appropriate number of clusters and assess cluster stability, I partitioned the data into a 70:30 ratio, assigning 70% to cereals.A and 30% to cereals_B. After analyzing the clustering results, I observed a high level of consistency between the clusters formed on partition A and their application to partition B. The consistency, demonstrated by similar counts across clusters in partition B, suggests robustness of the hierarchical clustering model to unseen data.
+
+To answer the last question, the data should be normalized before performing the cluster analysis to ensure meaningful and unbiased clustering results. The main objective of the cluster analysis is to group cereals based on their nutritional profiles to identify clusters indicative of a healthy diet suitable for elementary school students. To achieve this, it is crucial to normalize the dataset to ensure fair comparison and equal weighting of different nutritional attributes. Normalization facilitates a meaningful cluster analysis that accurately identifies cereals contributing to a healthy diet based on specific nutritional criteria, such as low sugar content, high fiber content, adequate protein, and balanced calorie levels.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(stats)
+library(cluster)
+library(factoextra)
+library(dplyr)
+library(caret)
+library(tidyr)
+library(fpc)
+```
+
+
+```{r}
+setwd("C:\\Users\\mkhan\\OneDrive\\Desktop\\Assignment_5")
+Mdata_cereals <- read.csv("C:\\Users\\mkhan\\OneDrive\\Desktop\\Assignment_5\\Cereals.csv", row.names = 1)
+
+```
+
+
+```{r}
+# Remove categorical column(s) before normalization
+Mdata_cereals <- subset(Mdata_cereals, select = -c(mfr, type))
+head(Mdata_cereals)
+str(Mdata_cereals)
+```
+
+## Omitting the missing values
+```{r}
+Mdata_cereals <- na.omit(Mdata_cereals)
+head(Mdata_cereals)
+```
+
+#Scaling/ Normalizing the data
+```{r}
+# Normalizing the numeric data
+cereals_num <- Mdata_cereals %>% select_if(is.numeric)
+cereals_scaled <- scale(cereals_num)
+head(cereals_scaled)
+```
+
+## Agnes
+The Euclidean distance-based dissimilarity matrix is done and then performing hierarchical clustering (hclust()) on the dissimilarity matrix (Mdata_cereals_E) using complete linkage (method = "complete"), producing a dendrogram (hc1).
+```{r}
+Mdata_cereals_E <- dist(Mdata_cereals, method = "euclidean")  
+hc1 <- hclust(Mdata_cereals_E, method = "complete") 
+```
+
+#Plotting the obtained dendrogram
+```{r}
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+##Computing with agnes and with different linkage methods
+```{r}
+# Apply Agnes with different linkage methods
+hc_single_c <- agnes(cereals_scaled, method = "single")
+hc_complete_c <- agnes(cereals_scaled, method = "complete")
+hc_average_c <- agnes(cereals_scaled, method = "average")
+hc_ward_c <- agnes(cereals_scaled, method = "ward")
+```
+
+## Compare Agglomerative coefficients
+```{r}
+# Best linkage method
+print(hc_single_c$ac)
+print(hc_complete_c$ac)
+print(hc_average_c$ac)
+print(hc_ward_c$ac)
+```
+
+```{r}
+pltree(hc_ward_c, cex = 0.6, hang = -1, main = "Dendrogram of agnes")
+```
+
+#Cutting Dendrograms
+```{r}
+summary(Mdata_cereals)
+```
+
+#Cutting/Plotting Dendrogram
+```{r}
+Mdata_cereals_E <- dist(Mdata_cereals, method = "euclidean") 
+hc_ward_c <- hclust(Mdata_cereals_E,method = "complete")
+
+# plot dendrogram
+plot(hc_ward_c, cex = 0.6)
+rect.hclust(hc_ward_c, k = 4, border = 1:4)
+```
+
+##  Comment on the structure of the clusters and on their stability. Hint: To check stability, 
+partition the data and see how well clusters formed based on one part apply to the other 
+part.
+# Third Question-Partitioning Data and Assessing Cluster Consistency
+
+```{r}
+# Partitioning the data into two parts
+set.seed(123) 
+partition <- sample(2, nrow(cereals_scaled), replace = TRUE, prob = c(0.7, 0.3))
+cereals.A <- cereals_scaled[partition == 1, ]
+cereals.B <- cereals_scaled[partition == 2, ]
+
+```
+
+```{r}
+# Performing hierarchical clustering on partition A
+hrc_A <- agnes(cereals.A, method = "ward")
+
+# Assigning clusters from partition A to partition B
+clust_assignments_B <- cutree(hrc_A, k = 3)
+
+# Matching lengths of cluster_assignments_B with partition for consistency check
+clust_assignments_B <- clust_assignments_B[partition == 2]
+
+# Assessing consistency of cluster assignments
+consistency <- table(clust_assignments_B, partition[partition == 2])
+print("Cluster Assignment Consistency:")
+print(consistency)
+```
+
+##  The elementary public schools would like to choose a set of cereals to include in their 
+daily cafeterias. Every day a different cereal is offered, but all cereals should support a 
+healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.” 
+Should the data be normalized? If not, how should they be used in the cluster analysis?
+Here, This sequence of code conducts hierarchical clustering on the scaled dataset to determine the best number of clusters. Subsequently, it assigns cereals to these clusters based on the optimal number identified and retrieves a subset of cereals that are part of a specific desired cluster, presumed to represent the "healthy" cluster.
+
+```{r}
+hc_healthy <- agnes(cereals_scaled, method = "ward")
+optimal_clust <- which.max(hc_healthy$ac)
+clust_assignments <- cutree(hc_healthy, k = optimal_clust)
+Desired_clust_number <- 1
+healthy_cereals <- Mdata_cereals[clust_assignments == Desired_clust_number, ]
+print("Healthy Cereals:")
+print(healthy_cereals)
+```
+
